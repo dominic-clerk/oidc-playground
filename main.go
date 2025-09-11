@@ -168,6 +168,31 @@ func main() {
 		})
 	})
 
+	mux.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		// Require ID token to pass as id_token_hint
+		idToken, err := readCookie(r, "id_token")
+		if err != nil || idToken == "" {
+			http.Error(w, "no id_token to logout", http.StatusUnauthorized)
+			return
+		}
+		endSessionURL, err := discoverEndSessionEndpoint(r.Context(), strings.TrimRight(cfg.FrontendAPIURL, "/"))
+		if err != nil || endSessionURL == "" {
+			http.Error(w, "logout not supported by provider", http.StatusNotImplemented)
+			return
+		}
+		q := url.Values{}
+		q.Set("id_token_hint", idToken)
+		logoutURL := endSessionURL + "?" + q.Encode()
+
+		// Clear local cookies
+		expired := time.Now().Add(-time.Hour)
+		http.SetCookie(w, &http.Cookie{Name: "access_token", Value: "", Path: "/", Expires: expired, MaxAge: -1, HttpOnly: true, Secure: cfg.CookieSecure})
+		http.SetCookie(w, &http.Cookie{Name: "id_token", Value: "", Path: "/", Expires: expired, MaxAge: -1, HttpOnly: true, Secure: cfg.CookieSecure})
+		http.SetCookie(w, &http.Cookie{Name: "refresh_token", Value: "", Path: "/", Expires: expired, MaxAge: -1, HttpOnly: true, Secure: cfg.CookieSecure})
+
+		http.Redirect(w, r, logoutURL, http.StatusFound)
+	})
+
 	addr := ":3009"
 	log.Printf("listening on %s", addr)
 	if err := http.ListenAndServe(addr, mux); err != nil {
@@ -358,8 +383,7 @@ func verifyIDToken(ctx context.Context, idToken string, cfg config, jwks *jwksCa
 	if err != nil || !tk.Valid {
 		return nil, fmt.Errorf("token invalid: %v", err)
 	}
-	var ok bool
-	claims, ok = tk.Claims.(jwt.MapClaims)
+	claims, ok := tk.Claims.(jwt.MapClaims)
 	if !ok {
 		return nil, errors.New("invalid claims type")
 	}
@@ -369,4 +393,25 @@ func verifyIDToken(ctx context.Context, idToken string, cfg config, jwks *jwksCa
 		out[k] = v
 	}
 	return out, nil
+}
+
+// OIDC discovery for end_session_endpoint
+func discoverEndSessionEndpoint(ctx context.Context, issuer string) (string, error) {
+	discoveryURL := strings.TrimRight(issuer, "/") + "/.well-known/openid-configuration"
+	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, discoveryURL, nil)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("discovery failed: %s", resp.Status)
+	}
+	var data struct {
+		EndSessionEndpoint string `json:"end_session_endpoint"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+		return "", err
+	}
+	return data.EndSessionEndpoint, nil
 }
