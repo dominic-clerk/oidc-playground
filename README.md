@@ -13,7 +13,7 @@ Collect from Clerk Dashboard:
 
 - `CLERK_FRONTEND_API_URL` (e.g. `https://verb-noun-00.clerk.accounts.dev` or `https://clerk.<YOUR_APP_DOMAIN>.com`)
 - OAuth app `Client ID`
-- Add redirect URL: `http://localhost:3000/callback`
+- Add redirect URL: `http://localhost:3009/callback`
 
 ## Configure
 
@@ -22,7 +22,7 @@ Create `.env` at repo root:
 ```
 CLERK_FRONTEND_API_URL=YOUR_FRONTEND_API_URL
 CLERK_OAUTH_CLIENT_ID=YOUR_CLIENT_ID
-OAUTH_REDIRECT_URI=http://localhost:3000/callback
+OAUTH_REDIRECT_URI=http://localhost:3009/callback
 OAUTH_SCOPE=openid profile email
 COOKIE_SECURE=false
 ```
@@ -33,7 +33,7 @@ COOKIE_SECURE=false
 go run .
 ```
 
-Visit `http://localhost:3000` then click `/login`. After authenticating with Clerk, you'll be redirected to `/hello`, which returns a JSON payload including your Clerk `/oauth/userinfo` response.
+Visit `http://localhost:3009` then click `/login`. After authenticating with Clerk, you'll be redirected to `/hello`, which returns a JSON payload including your Clerk `/oauth/userinfo` response.
 
 ## Notes
 
