@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"maps"
 	"math/big"
 	"net/http"
 	"net/url"
@@ -389,9 +390,7 @@ func verifyIDToken(ctx context.Context, idToken string, cfg config, jwks *jwksCa
 	}
 	// Return claims as a simple map
 	out := map[string]any{}
-	for k, v := range claims {
-		out[k] = v
-	}
+	maps.Copy(out, claims)
 	return out, nil
 }
 
